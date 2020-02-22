@@ -11,8 +11,8 @@ screen = pygame.display.set_mode(size)
 #VARS
 
 #boundary
-bLEFT = width/10
-bRIGHT = 9*width/10
+bLEFT = width/10 - 30
+bRIGHT = 9*width/10 + 30
 
 
 #PLAYER CLASS
@@ -20,6 +20,8 @@ class Player():
     def __init__(self):
         self.x = width/10
         self.y = 9*height/10
+        self.bullets = list()
+        self.atkTimer = time.time()
 
 
     def checkMove(self):
@@ -30,25 +32,49 @@ class Player():
                     self.x, self.y = self.move_left(self.x , self.y)
                 elif keys[pygame.K_RIGHT]:
                     self.x, self.y = self.move_right(self.x, self.y) 
-            
+                    
+                  
 
+    def moveBullets(self):
+        for b in self.bullets:
+            b.erase()
+            b.y -= 1
+            b.draw()
+            
     def move_left(self, x, y): 
         if(x > bLEFT):
             pygame.draw.polygon(screen, black, ((x, y), (x + 20, y + 30), (x - 20, y + 30)))
-            return x - 0.1, y
+            return x - 0.01, y
         else: return x,y
 
     def move_right(self, x, y): 
         if(x < bRIGHT):
             pygame.draw.polygon(screen, black, ((x, y), (x + 20, y + 30), (x - 20, y + 30)))
-            return x + 0.1, y
+            return x + 0.01, y
         else: return x,y
         
         
     def drawPlayer(self, x, y):
         pygame.draw.polygon(screen, (220,20,60), ((x, y), (x + 20, y + 30), (x - 20, y + 30)))
-
-
+        
+    def shoot(self):
+        now = time.time()
+        if now > self.atkTimer + 1:
+            self.bullets.append(Bullet(self.x,self.y))
+            self.atkTimer = time.time()
+            
+#TODO - bullets move at half speed when player is moving
+class Bullet():
+    def __init__(self, x, y):
+        self.x = int(x)
+        self.y = int(y)
+        self.draw()
+        
+    def erase(self):
+        pygame.draw.circle(screen, black, (self.x, self.y), 1 )
+        
+    def draw(self):
+        pygame.draw.circle(screen, (255,255,255), (self.x, self.y), 1 )
 
 #ARMY CLASS
 class Army():
@@ -81,7 +107,7 @@ class Army():
 
     def moveArmy(self, x, y):
         now = time.time()
-        if now > army.armyTimer + 1:
+        if now > self.armyTimer + 1:
             
             screen.fill(black)
             
@@ -122,7 +148,9 @@ while 1:
 
     player.checkMove()
     player.drawPlayer(player.x, player.y)
+    player.moveBullets()
     
-
+    player.shoot()
+    
     army.moveArmy(army.x, army.y)
     pygame.display.flip()
