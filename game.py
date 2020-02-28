@@ -86,7 +86,7 @@ class Enemy():
         self.x = x
         self.y = y
         self.alive = True 
-        self.pup = PowerUP(self)  
+        self.pup = PowerUP(x, y)  
         self.instance = None
         
 #ARMY CLASS
@@ -94,7 +94,12 @@ class Army():
     def __init__(self):
         self.army = list()
         self.x, self.y = int(width/10), 50
-        for e in range(49): self.army.append(Enemy(e, self.x - 30, self.y ))
+        x, y = self.x, self.y
+        for e in range(0,49):
+            x = (int(width/11) - 22) * e
+            if e in range(9,50,10):
+                y = 50 * e    
+            self.army.append(Enemy(e, x - 30, y ))
         self.armyTimer = time.time()
         self.lastMove = 0
         self.thisMove = "left"
@@ -104,8 +109,9 @@ class Army():
         screen.fill(black)
         x = self.x-30
         y = self.y
+
         for e in self.army:
-            if e.idx == 0 and e.alive: pygame.draw.circle(screen, 255, (self.x - 30, self.y), 18)
+            if e.alive and e.idx == 0: pygame.draw.circle(screen, 255, (x, y), 18)
             x += int(width/11)
             if e.idx in range(9,50,10): 
                 y += 50
@@ -118,8 +124,8 @@ class Army():
             e.x, e.y = x, y
             if e.alive: pygame.draw.circle(screen, 255, (e.x, e.y), 18)
 
- 
 
+ 
     def moveArmy(self, x, y):
         now = time.time()
         if now > self.armyTimer + 1:
@@ -149,22 +155,22 @@ class Army():
             
 
 class PowerUP():
-    def __init__(self, parent):
+    def __init__(self, x, y):
         self.type = self.chooseType()
-        self.x = parent.x
-        self.y = parent.y
+        self.x = x
+        self.y = y
 
     def chooseType(self):
         n = random.randint(1,100)
         if n >= 85: return "atkSpeed"
         elif n >= 90: return "multishot"
         elif n >= 95: return "bulletSize"
-        else: return None
+        else: return "none"
 
     def draw(self):
         pygame.draw.circle(screen, black, (int(self.x), int(self.y)), 10)
         self.y += 0.5
-        pygame.draw.circle(screen,(255,0,255),(int(self.x),int(self.y)),10)
+        pygame.draw.circle(screen,(255,0,255),(int(self.x),int(self.y)), 10)
 
 
 
