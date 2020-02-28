@@ -1,12 +1,13 @@
-import sys, pygame, time
+import sys, pygame, time, random
 
-pygame.init()
+pygame.display.init()
+infoObject = pygame.display.Info()
 size = width, height = 800, 600
 speed = [1,1]
 
 black = 0,0,0
 
-screen = pygame.display.set_mode(size)
+screen = pygame.display.set_mode(size,pygame.NOFRAME+pygame.FULLSCREEN)
 
 #VARS
 
@@ -84,7 +85,8 @@ class Enemy():
         self.idx = idx
         self.x = x
         self.y = y
-        self.alive = True
+        self.alive = True 
+        self.pup = PowerUP(self)  
         self.instance = None
         
 #ARMY CLASS
@@ -103,7 +105,7 @@ class Army():
         x = self.x-30
         y = self.y
         for e in self.army:
-            if e.idx == 0: pygame.draw.circle(screen, 255, (self.x - 30, self.y), 18)
+            if e.idx == 0 and e.alive: pygame.draw.circle(screen, 255, (self.x - 30, self.y), 18)
             x += int(width/11)
             if e.idx in range(9,50,10): 
                 y += 50
@@ -146,10 +148,30 @@ class Army():
             self.armyTimer = time.time()
             
 
+class PowerUP():
+    def __init__(self, parent):
+        self.type = self.chooseType()
+        self.x = parent.x
+        self.y = parent.y
+
+    def chooseType(self):
+        n = random.randint(1,100)
+        if n >= 85: return "atkSpeed"
+        elif n >= 90: return "multishot"
+        elif n >= 95: return "bulletSize"
+        else: return None
+
+    def draw(self):
+        pygame.draw.circle(screen, black, (int(self.x), int(self.y)), 10)
+        self.y += 0.5
+        pygame.draw.circle(screen,(255,0,255),(int(self.x),int(self.y)),10)
+
+
 
 #INIT ENTS
 player = Player()
 army = Army()
+pups = list()
 
 
 def checkHit(bullets, army):
@@ -157,9 +179,11 @@ def checkHit(bullets, army):
         for e in army:
             #pygame.draw.polygon(screen, 255, ((e.x-20,e.y-20),(e.x-20,e.y-20),(e.x+20,e.y+20),(e.x+20,e.y-20)))
             if b.x > e.x - 20 and b.x < e.x + 20 and b.y > e.y - 20 and b.y < e.y + 20 and e.alive and b.alive:
+                if e.pup.type: pups.append(e.pup)
                 e.alive = False
                 b.alive = False
                 bullets.remove(b)
+
     
 #GAME LOOP
 while 1:
@@ -171,14 +195,18 @@ while 1:
     
     army.drawArmy()
     
-
     player.checkMove()
     player.drawPlayer(player.x, player.y)
     player.moveBullets()
-    
+
     player.shoot()
     
     checkHit(player.bullets, army.army)
     
     army.moveArmy(army.x, army.y)
+    
+    for p in pups:
+        p.draw()
+        if p.y > height: pups.remove(p)
+
     pygame.display.flip()
