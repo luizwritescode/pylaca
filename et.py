@@ -1,18 +1,23 @@
 import sys, os
 import pygame
+import numpy as np 
+import cv2
 from pygame import key
 from pygame import font
-from pygaze import eyetracker
-from pygaze import libinput
 
+on = False
+cap = cv2.VideoCapture(0)
+
+if not cap.isOpened():
+    print("failed to open camera")
+    sys.exit()
 
 pygame.display.init()
 infoObj = pygame.display.Info()
 
-size = width, height = 1366, 768
-print(size)
-
+size = width, height = 800, 600
 black = 0,0,0
+white = 255,255,255
 
 font.init()
 font = font.SysFont("calibri", 48)
@@ -20,43 +25,39 @@ text = font.render("press space to start", False, (255,255,255))
 
 os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (0,0)
 
-pygame.display.init()
-
 screen = pygame.display.set_mode(size)
-
 screen.blit(text, (width/2 - 200,height/2))
-tracker = eyetracker.EyeTracker(screen)
-
 
 def start():
-    tracker.calibrate()
-    tracker.start_recording()
     
-    t1, startpos = tracker.wait_for_saccade_start()
-    endtime, startpos, endpos = tracker.wait_for_saccade_end()
+   
     
-    tracker.stop_recording() 
     
-    return endpos
+    return 0,0
 
-on = False
+
 
 while 1:
+    
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             sys.exit()
         
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
-                on = True    
+                break
+              
+    ret, frame = cap.read()
+     
+    screen.fill(black)
+    x, y = start()
+    pygame.draw.circle(screen, white, (x,y), 20)
     
-    if on: 
-        screen.fill(black)
-        x, y = start()
-        print(x, y)
-        pygame.draw.circle(screen, 255, (x,y), 20)
+    cv2.imshow("asdf", frame)
         
-    pygame.display.flip()
+    #pygame.display.flip()
     
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
     
     
