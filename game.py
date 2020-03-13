@@ -28,6 +28,7 @@ class Player():
         self.atkTimer = time.time()
         self.atkSpeed = 1
         self.moveSpeed = 0.5
+        self.bulletSize = 3
 
     def moveBullets(self):
         for b in self.bullets:
@@ -70,7 +71,9 @@ class Player():
     def shoot(self):
         now = time.time()
         if now > self.atkTimer + self.atkSpeed:
-            self.bullets.append(Bullet(self.x,self.y))
+            b = Bullet(self.x, self.y)
+            b.size = self.bulletSize
+            self.bullets.append(b)
             self.atkTimer = time.time()
             
 #TODO - bullets move at half speed when player is moving
@@ -79,13 +82,14 @@ class Bullet():
         self.x = int(x)
         self.y = int(y)
         self.alive = True
+        self.size = 1
         self.draw()
         
     def erase(self):
-        if self.alive: pygame.draw.circle(screen, black, (self.x, self.y), 1 )
+        if self.alive: pygame.draw.circle(screen, black, (self.x, self.y), self.size )
         
     def draw(self):
-        if self.alive: pygame.draw.circle(screen, (255,255,255), (self.x, self.y), 1 )
+        if self.alive: pygame.draw.circle(screen, (255,255,255), (self.x, self.y), self.size )
 
 
 #ENEMY CLASS
@@ -171,15 +175,21 @@ class PowerUP():
 
     def chooseType(self):
         n = random.randint(1,100)
-        if n >= 85: return {0:"atkSpeed"}
-        elif n >= 90: return {1:"multishot"}
-        elif n >= 95: return {2:"bulletSize"}
-        else: return "none"
+        if n >= 85: 
+            self.color = (255,0,255)
+            return {0:"atkSpeed"}
+        elif n >= 90: 
+            self.color = (0,255,255)
+            return {1:"multishot"}
+        elif n >= 95: 
+            self.color = (255,255,0)
+            return {2:"bulletSize"}
+        else: return None
 
     def draw(self):
         pygame.draw.circle(screen, black, (int(self.x), int(self.y)), 10)
         self.y += 0.5
-        pygame.draw.circle(screen,(255,0,255),(int(self.x),int(self.y)), 10)
+        pygame.draw.circle(screen,self.color,(int(self.x),int(self.y)), 10)
 
 
 
@@ -205,6 +215,7 @@ def gameover():
         screen.fill(black)
         screen.blit(text,
             width - text.get_width() // 2, height - text.get_height() // 2)
+        
 #GAME LOOP
 while 1:
     
@@ -228,7 +239,7 @@ while 1:
     for p in pups:
         p.draw()
         if p.y > height - 10: pups.remove(p)
-        if p.x == player.x and p.y == player.y: player.powerup(p)
+        if p.x > player.x and p.x < player.x + 20 and p.y > player.y and p.y < player.y + 30: player.powerup(p)
     
     end = True
     for e in army.army:
