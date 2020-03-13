@@ -1,14 +1,17 @@
 import sys, pygame, time, random
 
+pygame.init()
+pygame.font.init()
 pygame.display.init()
 infoObject = pygame.display.Info()
 size = width, height = 800, 600
 speed = [1,1]
 
 black = 0,0,0
+white = 255,255,255
 
 screen = pygame.display.set_mode(size,pygame.NOFRAME+pygame.FULLSCREEN)
-
+font = pygame.font.SysFont("consolas.ttf", 72)
 #VARS
 
 #boundary
@@ -23,35 +26,41 @@ class Player():
         self.y = 9*height/10
         self.bullets = list()
         self.atkTimer = time.time()
-
-
-    def checkMove(self):
-        # todo: use pygame.event.get() to handle key presses
-        for key in pygame.key.get_pressed():
-                keys = pygame.key.get_pressed()
-                if keys[pygame.K_LEFT]:
-                    self.x, self.y = self.move_left(self.x , self.y)
-                elif keys[pygame.K_RIGHT]:
-                    self.x, self.y = self.move_right(self.x, self.y) 
-                    
-                  
+        self.atkSpeed = 1
+        self.moveSpeed = 0.5
 
     def moveBullets(self):
         for b in self.bullets:
             b.erase()
             b.y -= 1
             b.draw()
+
+    def checkMove(self):
+        # todo: use pygame.event.get() to handle key presses
+        keys = pygame.key.get_pressed()
+        self.moveBullets()
+        if keys[pygame.K_LEFT]:
+            self.x, self.y = self.move_left(self.x , self.y)
+        elif keys[pygame.K_RIGHT]:
+            self.x, self.y = self.move_right(self.x, self.y) 
+                    
+                  
+    def powerup(self, pup):
+        if pup.type == 0:
+            self.atkSpeed = 0.5
+
+    
             
     def move_left(self, x, y): 
         if(x > bLEFT):
             pygame.draw.polygon(screen, black, ((x, y), (x + 20, y + 30), (x - 20, y + 30)))
-            return x - 0.005, y
+            return x - self.moveSpeed, y
         else: return x,y
 
     def move_right(self, x, y): 
         if(x < bRIGHT):
             pygame.draw.polygon(screen, black, ((x, y), (x + 20, y + 30), (x - 20, y + 30)))
-            return x + 0.005, y
+            return x + self.moveSpeed, y
         else: return x,y
         
         
@@ -60,7 +69,7 @@ class Player():
         
     def shoot(self):
         now = time.time()
-        if now > self.atkTimer + 1:
+        if now > self.atkTimer + self.atkSpeed:
             self.bullets.append(Bullet(self.x,self.y))
             self.atkTimer = time.time()
             
@@ -162,9 +171,9 @@ class PowerUP():
 
     def chooseType(self):
         n = random.randint(1,100)
-        if n >= 85: return "atkSpeed"
-        elif n >= 90: return "multishot"
-        elif n >= 95: return "bulletSize"
+        if n >= 85: return {0:"atkSpeed"}
+        elif n >= 90: return {1:"multishot"}
+        elif n >= 95: return {2:"bulletSize"}
         else: return "none"
 
     def draw(self):
@@ -190,29 +199,42 @@ def checkHit(bullets, army):
                 b.alive = False
                 bullets.remove(b)
 
-    
+def gameover():
+    while 1:
+        text = font.render("GAME OVER", True, (white))
+        screen.fill(black)
+        screen.blit(text,
+            width - text.get_width() // 2, height - text.get_height() // 2)
 #GAME LOOP
 while 1:
     
     #QUIT BTN
     for event in pygame.event.get():
         if event.type == pygame.QUIT: sys.exit()
-
+        elif pygame.key.get_pressed()[pygame.K_q] : sys.exit()
+    
+    
     
     army.drawArmy()
-    
-    player.checkMove()
-    player.drawPlayer(player.x, player.y)
-    player.moveBullets()
 
-    player.shoot()
-    
+    player.checkMove()
+
+    player.drawPlayer(player.x, player.y)
+    player.shoot() 
     checkHit(player.bullets, army.army)
     
     army.moveArmy(army.x, army.y)
     
     for p in pups:
         p.draw()
-        if p.y > height: pups.remove(p)
+        if p.y > height - 10: pups.remove(p)
+        if p.x == player.x and p.y == player.y: player.powerup(p)
+    
+    end = True
+    for e in army.army:
+        if e.alive:
+            end = False
+    
+    if end: gameover()
 
     pygame.display.flip()
