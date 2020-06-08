@@ -1,4 +1,6 @@
 import sys, pygame, time, random
+import numpy as np
+from video import Tracking
 
 pygame.init()
 pygame.font.init()
@@ -10,7 +12,7 @@ speed = [1,1]
 black = 0,0,0
 white = 255,255,255
 
-screen = pygame.display.set_mode(size,pygame.NOFRAME+pygame.FULLSCREEN)
+screen = pygame.display.set_mode(size)#,pygame.NOFRAME)#+pygame.FULLSCREEN)
 font = pygame.font.SysFont("consolas.ttf", 72)
 #VARS
 
@@ -18,6 +20,7 @@ font = pygame.font.SysFont("consolas.ttf", 72)
 bLEFT = width/10 - 30
 bRIGHT = 9*width/10 + 30
 
+T = Tracking()
 
 #PLAYER CLASS
 class Player():
@@ -27,29 +30,38 @@ class Player():
         self.bullets = list()
         self.atkTimer = time.time()
         self.atkSpeed = 1
-        self.moveSpeed = 0.5
+        self.moveSpeed = 1
         self.bulletSize = 3
 
     def moveBullets(self):
         for b in self.bullets:
             b.erase()
-            b.y -= 1
+            b.y -= 5
             b.draw()
 
-    def checkMove(self):
+    def checkMove(self, face_movement = False, started = False):
         # todo: use pygame.event.get() to handle key presses
         keys = pygame.key.get_pressed()
         self.moveBullets()
-        if keys[pygame.K_LEFT]:
-            self.x, self.y = self.move_left(self.x , self.y)
-        elif keys[pygame.K_RIGHT]:
-            self.x, self.y = self.move_right(self.x, self.y) 
+        print(face_movement)
+        x = y = False
+        if(face_movement):
+            self.moveSpeed = abs(face_movement/10)
+            x = width//2 + face_movement
+            y = height//2 + 60
+        
+        if(started and face_movement):
+            if face_movement < 0:
+                self.x, self.y = self.move_left(self.x , self.y)
+            elif face_movement > 0:
+                self.x, self.y = self.move_right(self.x, self.y) 
+
+        return x, y    
                     
                   
     def powerup(self, pup):
         if pup.type == 0:
             self.atkSpeed = 0.5
-
     
             
     def move_left(self, x, y): 
@@ -101,18 +113,22 @@ class Enemy():
         self.alive = True 
         self.pup = PowerUP(x, y)  
         self.instance = None
+    
+    def die(self):
+        pygame.draw.circle(screen, black, (self.x, self.y), 18)
         
 #ARMY CLASS
 class Army():
     def __init__(self):
         self.army = list()
-        self.x, self.y = int(width/10), 50
+        self.x, self.y = int(width/10) - 30, 50
         x, y = self.x, self.y
-        for e in range(0,49):
-            x = (int(width/11) - 22) * e
-            if e in range(9,50,10):
-                y = 50 * e    
-            self.army.append(Enemy(e, x - 30, y ))
+        for e in range(49):
+            x += (int(width/11) - 30) * e
+            if e in range(0,50,10):
+                y = 50 * e
+                x = width // 11    
+            self.army.append(Enemy(e, x, y))
         self.armyTimer = time.time()
         self.lastMove = 0
         self.thisMove = "left"
@@ -120,11 +136,9 @@ class Army():
     
     def drawArmy(self):
         screen.fill(black)
-        x = self.x-30
+        x = self.x
         y = self.y
-
         for e in self.army:
-            if e.alive and e.idx == 0: pygame.draw.circle(screen, 255, (x, y), 18)
             x += int(width/11)
             if e.idx in range(9,50,10): 
                 y += 50
@@ -136,7 +150,6 @@ class Army():
                     x = (self.lastMove * 10) - 10
             e.x, e.y = x, y
             if e.alive: pygame.draw.circle(screen, 255, (e.x, e.y), 18)
-
 
  
     def moveArmy(self, x, y):
@@ -172,6 +185,7 @@ class PowerUP():
         self.type = self.chooseType()
         self.x = x
         self.y = y
+        self.alive = True
 
     def chooseType(self):
         n = random.randint(1,100)
@@ -186,10 +200,11 @@ class PowerUP():
             return {2:"bulletSize"}
         else: return None
 
-    def draw(self):
+    def draw(self, b = True):
         pygame.draw.circle(screen, black, (int(self.x), int(self.y)), 10)
-        self.y += 0.5
-        pygame.draw.circle(screen,self.color,(int(self.x),int(self.y)), 10)
+        self.y += 0.2
+        if b:
+            pygame.draw.circle(screen,self.color,(int(self.x),int(self.y)), 10)
 
 
 
@@ -197,55 +212,129 @@ class PowerUP():
 player = Player()
 army = Army()
 pups = list()
-
+end = True
+started = False
 
 def checkHit(bullets, army):
     for b in bullets:
         for e in army:
             #pygame.draw.polygon(screen, 255, ((e.x-20,e.y-20),(e.x-20,e.y-20),(e.x+20,e.y+20),(e.x+20,e.y-20)))
             if b.x > e.x - 20 and b.x < e.x + 20 and b.y > e.y - 20 and b.y < e.y + 20 and e.alive and b.alive:
-                if e.pup.type: pups.append(e.pup)
+                if e.pup.type: 
+                    e.pup.x = e.x
+                    e.pup.y = e.y
+                    pups.append(e.pup)
+                e.die()
                 e.alive = False
                 b.alive = False
                 bullets.remove(b)
 
 def gameover():
-    while 1:
-        text = font.render("GAME OVER", True, (white))
-        screen.fill(black)
-        screen.blit(text,
-            width - text.get_width() // 2, height - text.get_height() // 2)
-        
-#GAME LOOP
-while 1:
     
-    #QUIT BTN
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT: sys.exit()
-        elif pygame.key.get_pressed()[pygame.K_q] : sys.exit()
-    
-    
-    
-    army.drawArmy()
+    i = 0
+    while i < 10000000000:
+        i += 1
+    sys.exit()
 
-    player.checkMove()
+def put_array(surface, myarr):          # put array into surface
+    bv = surface.get_view("0")
+    bv.write(myarr.tostring())
 
-    player.drawPlayer(player.x, player.y)
-    player.shoot() 
-    checkHit(player.bullets, army.army)
-    
-    army.moveArmy(army.x, army.y)
-    
-    for p in pups:
-        p.draw()
-        if p.y > height - 10: pups.remove(p)
-        if p.x > player.x and p.x < player.x + 20 and p.y > player.y and p.y < player.y + 30: player.powerup(p)
-    
-    end = True
-    for e in army.army:
-        if e.alive:
-            end = False
-    
-    if end: gameover()
+if __name__ == "__main__":
+    MENU = False
 
-    pygame.display.flip()
+    if(MENU):
+        drawMenu()
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                pass
+    else:
+        bg_surface = pygame.surface.Surface(size)
+        move = None
+        count = 0
+        #GAME LOOP
+        while 1:
+            army.drawArmy()
+
+            #draw bg
+            
+            T.run()
+            tScreen = T.get_screen()
+            if(tScreen is not None):
+                tScreen = 255*tScreen/tScreen
+                bg_surface = pygame.surfarray.make_surface(tScreen)
+                bg_surface = pygame.transform.flip(bg_surface, False, True)
+                bg_surface = pygame.transform.rotate(bg_surface, -90)
+                bg_surface = pygame.transform.scale(bg_surface, size)
+
+            bg_surface.set_alpha(50)
+            screen.blit(bg_surface, (0,0))
+            
+            #QUIT BTN
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT: sys.exit()
+                elif pygame.key.get_pressed()[pygame.K_q] : sys.exit()
+            
+            
+            #draw aim position
+
+            aim_alpha = 50
+            aim_surface = pygame.surface.Surface(size, pygame.SRCALPHA, 32)
+
+            if(not started):
+                pygame.draw.circle(aim_surface, white, (width//2, height//2 + 60), 10, 1)
+
+            move_x, move_y = player.checkMove(T.get_movement(), started)
+
+            # START CONDITION
+            if((move_x > -10 or move_x < 10) and move_x != 0):
+                count += 1
+            
+            if( count > 50):
+                started = True
+
+            if(move_x < width//2 - width//12 or move_x > width//2 + width//12):
+                move_x = False
+            elif(move_x): 
+                aim_alpha = 255
+                pygame.draw.circle(aim_surface, white, (move_x, move_y), 5)
+            
+            aim_surface.set_alpha(aim_alpha)
+            pygame.draw.rect(aim_surface, white, (width//2 - width//12, height//2, 5, 120))
+            pygame.draw.rect(aim_surface, white, (width//2 + width//12, height//2, 5, 120))
+            
+            screen.blit(aim_surface, (0,0))
+            player.drawPlayer(player.x, player.y)
+
+
+            
+
+            if(started):
+                player.shoot() 
+                checkHit(player.bullets, army.army)
+            
+                army.moveArmy(army.x, army.y)
+            
+            #POWERUPS - not implemented
+            for p in pups:
+                if p.y > height - 10:
+                    pups.remove(p)
+                elif p.x > player.x and p.x < player.x + 20 and p.y > player.y and p.y < player.y + 30:
+                    player.powerup(p)
+                    pups.remove(p)
+                else: pass#p.draw()
+            
+            #GAMEOVER CHECK
+            for e in army.army:
+                if e.alive:
+                    end = False
+            #GAMEOVER SCREEN
+            if end: 
+                screen.fill(black)
+                text = font.render("GAME OVER", 1, (white))
+                textpos = text.get_rect()
+                textpos.centerx = screen.get_rect().centerx
+                textpos.centery = screen.get_rect().centery
+                screen.blit(text, (textpos.centerx - text.get_width() // 2, textpos.centery - text.get_height() // 2))
+
+            pygame.display.flip()
